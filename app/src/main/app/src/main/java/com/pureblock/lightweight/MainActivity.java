@@ -14,7 +14,7 @@ public class MainActivity extends Activity {
     private MediaProjectionManager mpManager;
 
     @Override
-    protected void Bundle) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mpManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         checkOverlayPermission();
@@ -38,10 +38,12 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_OVERLAY) {
             checkOverlayPermission();
         } else if (requestCode == REQ_CAPTURE && resultCode == RESULT_OK) {
-            ScreenScannerService.mediaProjection = mpManager.getMediaProjection(resultCode, data);
+            // Android 10+ Crash Fix: Pass the raw intent directly to the background service safely
             Intent serviceIntent = new Intent(this, ScreenScannerService.class);
-            startService(serviceIntent);
-            finish(); // Exit setup screen immediately to save system RAM
+            serviceIntent.putExtra("RESULT_CODE", resultCode);
+            serviceIntent.putExtra("DATA_INTENT", data);
+            startForegroundService(serviceIntent);
+            finish();
         }
     }
-            }
+}
