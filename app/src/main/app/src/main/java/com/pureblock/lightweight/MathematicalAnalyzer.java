@@ -4,24 +4,22 @@ import android.graphics.Bitmap;
 
 public class MathematicalAnalyzer {
 
-    // Pre-allocated array to keep memory footprint under 1MB during processing
-    private static int[] pixels = new int[160 * 120];
-
     public static boolean analyzeFrame(Bitmap downscaledBitmap) {
         if (downscaledBitmap == null) return false;
 
         int width = downscaledBitmap.getWidth();
         int height = downscaledBitmap.getHeight();
         
-        // Dump pixels into primitive array (Zero memory allocation overhead)
+        // Fix: Dynamic allocation based on actual padded width to prevent array crashes
+        int[] pixels = new int[width * height];
         downscaledBitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
         int skinPixelCount = 0;
         int edgeCurveCount = 0;
         int totalPixels = width * height;
 
-        // Optimized mathematical scanning loop
-        for (int y = 1; y < height - 1; y += 2) { // Step by 2 for 50% speed optimization
+        // Optimized mathematical scanning loop (stepping by 2 for speed)
+        for (int y = 1; y < height - 1; y += 2) {
             for (int x = 1; x < width - 1; x += 2) {
                 int idx = y * width + x;
                 int pixel = pixels[idx];
@@ -30,7 +28,7 @@ public class MathematicalAnalyzer {
                 int g = (pixel >> 8) & 0xff;
                 int b = pixel & 0xff;
 
-                // 1. Explicit/Mild Skin-Tone Matrix Formula (RGB Space)
+                // Skin-Tone Matrix Formula
                 boolean isSkin = (r > 95 && g > 40 && b > 20 &&
                         (Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) > 15) &&
                         Math.abs(r - g) > 15 && r > g && r > b);
@@ -38,8 +36,7 @@ public class MathematicalAnalyzer {
                 if (isSkin) {
                     skinPixelCount++;
 
-                    // 2. Inline Lightweight Sobel Edge Detection (Detects fabric folds/body curves)
-                    // Calculates gradient changes of neighboring pixels
+                    // Soft structural gradient curve tracking (Sobel logic)
                     int pLeft = pixels[idx - 1] & 0xff;
                     int pRight = pixels[idx + 1] & 0xff;
                     int pTop = pixels[idx - width] & 0xff;
@@ -48,7 +45,6 @@ public class MathematicalAnalyzer {
                     int hGradient = Math.abs(pLeft - pRight);
                     int vGradient = Math.abs(pTop - pBottom);
 
-                    // If a skin pixel sits precisely on a soft structural gradient curve
                     if ((hGradient + vGradient) > 30 && (hGradient + vGradient) < 80) {
                         edgeCurveCount++;
                     }
@@ -59,7 +55,9 @@ public class MathematicalAnalyzer {
         double skinRatio = (double) skinPixelCount / (totalPixels / 4.0);
         double curveRatio = (double) edgeCurveCount / (double) Math.max(1, skinPixelCount);
 
-        // Threshold tuning for mild sensual focus composition patterns
+        // Clear memory immediately
+        pixels = null;
+
         return (skinRatio > 0.25 && curveRatio > 0.35);
     }
-          }
+}
